@@ -1,6 +1,6 @@
 # Sentinel AI
 
-Sentinel AI is a startup-style MVP for AI-powered transaction security on digital assets. It intercepts transactions before signing, decodes intent, simulates effects, scores risk, generates human-readable explanations, verifies a ZK-style compliance proof, and produces a guarded signing decision.
+Sentinel AI is for AI-powered transaction security on digital assets. It intercepts transactions before signing, decodes intent, simulates effects, scores risk, generates human-readable explanations, verifies a ZK-style compliance proof, and produces a guarded signing decision.
 
 ## Stack
 
@@ -13,7 +13,7 @@ Sentinel AI is a startup-style MVP for AI-powered transaction security on digita
 - Prisma + PostgreSQL
 - Redis cache wrapper
 
-## What the MVP Includes
+## What this Includes
 
 - Premium landing page with animated product telemetry
 - Dashboard to paste or load raw transaction payloads
