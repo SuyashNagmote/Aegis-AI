@@ -1,0 +1,68 @@
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { verifyMessage } from "ethers";
+
+type NonceRecord = {
+  nonce: string;
+  expiresAt: number;
+  issuedAt: number;
+};
+
+const nonces = new Map<string, NonceRecord>();
+
+function tokenSecret() {
+  return process.env.AUTH_SECRET ?? "sentinel-auth-secret";
+}
+
+function safeEquals(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function signToken(address: string, nonce: string) {
+  const secret = process.env.AUTH_SECRET ?? "sentinel-auth-secret";
+  const issuedAt = Date.now();
+  const expiresAt = issuedAt + 1000 * 60 * 60;
+  const sessionId = randomUUID();
+  const payload = `${address}:${issuedAt}:${expiresAt}:${sessionId}:${nonce}`;
+  const signature = createHmac("sha256", secret).update(payload).digest("hex");
+  return Buffer.from(`${payload}:${signature}`).toString("base64url");
+}
+
+export function verifyToken(token: string) {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const [address, issuedAt, expiresAt, sessionId, nonce, signature] = decoded.split(":");
+    const payload = `${address}:${issuedAt}:${expiresAt}:${sessionId}:${nonce}`;
+    const expected = createHmac("sha256", tokenSecret()).update(payload).digest("hex");
+
+    if (!safeEquals(expected, signature)) return null;
+    if (Number(expiresAt) < Date.now()) return null;
+    return { address, issuedAt: Number(issuedAt), expiresAt: Number(expiresAt), sessionId };
+  } catch {
+    return null;
+  }
+}
+
+export function issueNonce(address: string) {
+  const nonce = randomUUID();
+  nonces.set(address.toLowerCase(), {
+    nonce,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    issuedAt: Date.now()
+  });
+  return nonce;
+}
+
+export function verifyWalletSignature(address: string, signature: string) {
+  const record = nonces.get(address.toLowerCase());
+  if (!record || record.expiresAt < Date.now()) return null;
+
+  const message = `Sentinel AI authentication nonce: ${record.nonce}`;
+  const recovered = verifyMessage(message, signature);
+  if (recovered.toLowerCase() !== address.toLowerCase()) return null;
+
+  nonces.delete(address.toLowerCase());
+  return signToken(address, record.nonce);
+}
